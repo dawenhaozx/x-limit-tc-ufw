@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Default open ports
-default_ports="22,3337,51888"
+default_ports="3337,51888"
 
 init_ufw() {
 # Check if ufw is installed, if not, install it
@@ -9,6 +9,10 @@ if ! command -v ufw &> /dev/null; then
     echo "Installing ufw..."
     apt-get update
     apt-get install -y ufw
+fi
+}
+
+open_ssh() {
 SSH_PORT=$(grep -oP "(?<=Port\s)\d+" /etc/ssh/sshd_config)
 # 检查是否成功提取端口
 if [ -z "$SSH_PORT" ]; then
@@ -19,7 +23,6 @@ else
 fi
 ufw enable
 ufw allow $SSH_PORT
-fi
 }
 
 # Function to extract ports from config.json
@@ -29,6 +32,7 @@ extract_ports() {
 
 open_deffult_ports() {
 # Add default ports to ufw if not already added
+current_ports=$(ufw status numbered | awk '$1 ~ /^[0-9]+$/ {print $NF}')
 IFS=',' read -ra default_ports_array <<< "$default_ports"
 for port in "${default_ports_array[@]}"; do
     ufw allow $port
