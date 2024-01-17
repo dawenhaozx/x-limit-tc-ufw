@@ -129,7 +129,7 @@ check_and_set_limit() {
 # 函数：手动设置限速
 manual_limit() {
     echo "可用端口："
-    PORTS=$(extract_ports | grep -v 62798)
+    PORTS=$(extract_ports | grep -v 62789)
     echo $PORTS
     read -p "选择端口号: " PORT
     read -p "输入限速值（Mbps，不带单位）: " BANDWIDTH
@@ -145,7 +145,7 @@ manual_limit() {
 
 # 函数：分析并获取最常见的限速值
 get_most_common_speed() {
-    PORTS=$(extract_ports | grep -v 62798)
+    PORTS=$(extract_ports | grep -v 62789)
     CLASSID=1001
     declare -A speed_count
     for PORT in $PORTS; do
@@ -179,7 +179,7 @@ auto_limit() {
 
     read -p "输入限速值（Mbps，不带单位）: " BANDWIDTH
     CLASSID=1001
-    for PORT in PORTS=$(extract_ports | grep -v 62798); do
+    for PORT in PORTS=$(extract_ports | grep -v 62789); do
         CURRENT_SPEED=$(tc class show dev $IFACE | grep "1:$CLASSID" | awk '{for(i=1;i<=NF;i++) if ($i=="rate") print $(i+1)}' | sed 's/mbit//;s/kbit/Kbps/;s/gbit/Gbps/')
         if [ "$OVERRIDE_CHOICE" == "y" ] || [ "$CURRENT_SPEED" == "$MOST_COMMON_SPEED" ] || [ -z "$CURRENT_SPEED" ]; then
             tc class replace dev $IFACE parent 1:1 classid 1:$CLASSID htb rate ${BANDWIDTH}mbit ceil ${BANDWIDTH}mbit
@@ -199,7 +199,7 @@ remove_all_limits() {
 # 函数：显示已设置的端口限速
 show_limits() {
     echo "当前端口限速设置："
-    PORTS=$(extract_ports | grep -v 62798)
+    PORTS=$(extract_ports | grep -v 62789)
     CLASSID=1001
     for PORT in $PORTS; do
         SPEED=$(tc class show dev $IFACE | grep "1:$CLASSID" | awk '{for(i=1;i<=NF;i++) if ($i=="rate") print $(i+1)}' | sed 's/mbit//;s/kbit/Kbps/;s/gbit/Gbps/')
