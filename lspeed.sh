@@ -70,7 +70,7 @@ auto_ports() {
 }
 
 show_ports() {
-sudo ufw status numbered
+ufw status numbered
 }
 
 ####################################################### 获取网络接口名称
