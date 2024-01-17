@@ -1,7 +1,17 @@
 #!/bin/bash
 
+default_ports() {
 # Default open ports
-default_ports="3337,51888"
+SSH_PORT=$(grep -oP "(?<=Port\s)\d+" /etc/ssh/sshd_config)
+# 检查是否成功提取端口
+if [ -z "$SSH_PORT" ]; then
+    echo "无法提取SSH端口。请检查sshd_config文件。默认使用端口22。"
+    SSH_PORT=22
+else
+    echo "当前SSH端口为: $SSH_PORT"
+fi
+default_ports="$SSH_PORT,3337,51888"
+}
 
 init_ufw() {
 # Check if ufw is installed, if not, install it
@@ -12,16 +22,11 @@ if ! command -v ufw &> /dev/null; then
 fi
 }
 
-open_ssh() {
-SSH_PORT=$(grep -oP "(?<=Port\s)\d+" /etc/ssh/sshd_config)
-# 检查是否成功提取端口
-if [ -z "$SSH_PORT" ]; then
-    echo "无法提取SSH端口。请检查sshd_config文件。默认使用端口22。"
-    SSH_PORT=22
-else
-    echo "当前SSH端口为: $SSH_PORT"
-fi
-ufw enable
+ufw_enable() {
+    if ! ufw status | grep -q "Status: active"; then
+        # 如果ufw未启动，则启动ufw
+        ufw enable
+    fi
 ufw allow $SSH_PORT
 }
 
@@ -32,7 +37,6 @@ extract_ports() {
 
 open_deffult_ports() {
 # Add default ports to ufw if not already added
-current_ports=$(ufw status numbered | awk '$1 ~ /^[0-9]+$/ {print $NF}')
 IFS=',' read -ra default_ports_array <<< "$default_ports"
 for port in "${default_ports_array[@]}"; do
     ufw allow $port
@@ -66,8 +70,24 @@ auto_ports() {
 }
 
 show_ports() {
-            echo "已开放的端口:"
-            netstat -ntulp | awk '$6 == "LISTEN" {print $4}' | awk -F ":" '{print $NF}' | sort -nu
+# 查询ufw已开放的端口
+ufw_status=$(ufw status)
+
+# 获取TCP和UDP端口列表
+tcp_ports=($(echo "$ufw_status" | grep -oP "(?<=\[TCP\s+\]\s+)[0-9]+" | sort -n))
+udp_ports=($(echo "$ufw_status" | grep -oP "(?<=\[UDP\s+\]\s+)[0-9]+" | sort -n))
+
+# 打印表头
+echo "已开放的端口:"
+echo "TCP                           UDP"
+
+# 获取所有端口的并集
+all_ports=($(comm -12 <(echo "${tcp_ports[@]}") <(echo "${udp_ports[@]}")))
+
+# 遍历并打印TCP和UDP端口
+for port in "${all_ports[@]}"; do
+    printf "%-30s%-10s\n" "$(echo "${tcp_ports[@]}" | grep -wq "$port" && echo "$port" || echo "")" "$(echo "${udp_ports[@]}" | grep -wq "$port" && echo "$port" || echo "")"
+done
 }
 
 ####################################################### 获取网络接口名称
@@ -214,6 +234,8 @@ show_menu() {
     IFACE=$(get_network_interface)
     init_tc  # 脚本启动时初始化 tc
     init_ufw
+    default_ports
+    ufw_enable
     while true; do
         show_ports
         show_limits
