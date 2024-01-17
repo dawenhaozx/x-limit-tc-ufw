@@ -70,24 +70,7 @@ auto_ports() {
 }
 
 show_ports() {
-# 查询ufw已开放的端口
-ufw_status=$(ufw status)
-
-# 获取TCP和UDP端口列表
-tcp_ports=($(echo "$ufw_status" | grep -oP "(?<=\[TCP\s+\]\s+)[0-9]+" | sort -n))
-udp_ports=($(echo "$ufw_status" | grep -oP "(?<=\[UDP\s+\]\s+)[0-9]+" | sort -n))
-
-# 打印表头
-echo "已开放的端口:"
-echo "TCP                           UDP"
-
-# 获取所有端口的并集
-all_ports=($(comm -12 <(echo "${tcp_ports[@]}") <(echo "${udp_ports[@]}")))
-
-# 遍历并打印TCP和UDP端口
-for port in "${all_ports[@]}"; do
-    printf "%-30s%-10s\n" "$(echo "${tcp_ports[@]}" | grep -wq "$port" && echo "$port" || echo "")" "$(echo "${udp_ports[@]}" | grep -wq "$port" && echo "$port" || echo "")"
-done
+sudo ufw status numbered
 }
 
 ####################################################### 获取网络接口名称
