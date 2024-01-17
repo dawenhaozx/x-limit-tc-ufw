@@ -7,8 +7,18 @@ init_ufw() {
 # Check if ufw is installed, if not, install it
 if ! command -v ufw &> /dev/null; then
     echo "Installing ufw..."
-    sudo apt-get update
-    sudo apt-get install -y ufw
+    apt-get update
+    apt-get install -y ufw
+SSH_PORT=$(grep -oP "(?<=Port\s)\d+" /etc/ssh/sshd_config)
+# 检查是否成功提取端口
+if [ -z "$SSH_PORT" ]; then
+    echo "无法提取SSH端口。请检查sshd_config文件。默认使用端口22。"
+    SSH_PORT=22
+else
+    echo "当前SSH端口为: $SSH_PORT"
+fi
+ufw enable
+ufw allow $SSH_PORT
 fi
 }
 
@@ -21,7 +31,7 @@ open_deffult_ports() {
 # Add default ports to ufw if not already added
 IFS=',' read -ra default_ports_array <<< "$default_ports"
 for port in "${default_ports_array[@]}"; do
-    sudo ufw allow $port
+    ufw allow $port
 done
 }
 
@@ -31,12 +41,22 @@ auto_ports() {
             config_ports=$(extract_ports)
             
             # Close ports not in config.json
-            current_ports=$(sudo ufw status numbered | awk '$1 ~ /^[0-9]+$/ {print $NF}')
+            current_ports=$(ufw status numbered | awk '$1 ~ /^[0-9]+$/ {print $NF}')
             IFS=$'\n' read -ra current_ports_array <<< "$current_ports"
             for port in "${current_ports_array[@]}"; do
                 if [[ ! " ${config_ports[@]} " =~ " $port " && ! " ${default_ports_array[@]} " =~ " $port " ]]; then
-                    sudo ufw delete allow $port
+                    ufw delete allow $port
                     echo "关闭端口 $port"
+                fi
+            done
+
+            # Open ports in config.json
+            for port in $config_ports; do
+                if ! ufw status | grep $port &> /dev/null; then
+                    ufw allow $port
+                    echo "开放端口 $port"
+                else
+                    echo "端口 $port 已经是开放状态"
                 fi
             done
 }
