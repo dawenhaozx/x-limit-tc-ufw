@@ -10,7 +10,7 @@ if [ -z "$SSH_PORT" ]; then
 else
     echo "当前SSH端口为: $SSH_PORT"
 fi
-default_ports="$SSH_PORT,3337,51888"
+default_ports="$SSH_PORT,80,3337"
 }
 
 init_ufw() {
@@ -46,7 +46,7 @@ done
 auto_ports() {
             # Close all ports except those in config.json
             echo "从config.json中提取并开启端口:"
-            config_ports=$(extract_ports)
+            config_ports=$(extract_ports | grep -v 62789)
             
             # Close ports not in config.json
             current_ports=$(ufw status numbered | awk '$1 ~ /^[0-9]+$/ {print $NF}')
