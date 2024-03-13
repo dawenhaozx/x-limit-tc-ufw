@@ -53,40 +53,56 @@ add_ufw_rule() {
 # 函数：删除UFW规则
 delete_ufw_rule() {
     local port="$1"
+
+    # 获取UFW规则中允许的IP列表
+    local ufw_status=$(grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}" /etc/ufw/user.rules | sort -u)
     
-    # 转义括号
-    local escaped_domains=$(IFS=\|; echo "${domains[*]}")
+    # 输出UFW规则中允许的IP
+    echo "UFW规则中允许的IP（$SSH_PORT端口）："
+    for allowed_ip in ${ufw_status[@]}; do
+        echo "$allowed_ip"
+    done
 
-    # 列出待删除的规则
-    local rules_to_delete=$(ufw status | grep "ALLOW" | grep -vE "($escaped_domains)" | grep "ALLOW.*$port" | awk '{print $4}')
+    # 从A.json中提取的IP
+    local domains=($(jq -r '.domain[]' "$json_file"))
+    local resolved_ips=()
+    for domain in "${domains[@]}"; do
+        ip=$(resolve_domain "$domain")
 
-    echo "要删除的规则列表：$rules_to_delete"
+        # 检查是否成功解析域名
+        if [ $? -eq 0 ]; then
+            resolved_ips+=("$ip")
+        fi
+    done
 
-    # 删除规则
-    for source_ip in $rules_to_delete; do
-        ufw delete allow from "$source_ip" to any port "$port"
-        echo "删除规则：allow from $source_ip to any port $port"
+    # 执行UFW删除多余的规则
+    for existing_ip in ${ufw_status[@]}; do
+        # 如果该IP不在解析后的IP列表中，删除规则
+        if [[ ! " ${resolved_ips[@]} " =~ " ${existing_ip} " ]]; then
+            ufw delete allow from "$existing_ip" to any port "$port"
+            echo "删除规则：allow from $existing_ip to any port $port"
+        fi
     done
 }
 
 # 读取A.json文件
 domains=($(jq -r '.domain[]' "$json_file"))
-ports=($(jq -r '.port[]' "$json_file"))
 
+# 存储解析后的IP
+resolved_ips=()
 for domain in "${domains[@]}"; do
     ip=$(resolve_domain "$domain")
 
     # 检查是否成功解析域名
     if [ $? -eq 0 ]; then
-        add_ufw_rule "$ip" "$SSH_PORT"
-        # 遍历端口配置，添加UFW规则
-        for port in "${ports[@]}"; do
-            add_ufw_rule "$ip" "$port"
-        done
+        resolved_ips+=("$ip")
     fi
 done
 
-# 删除不在解析域名IP列表中的对应端口规则
-for port in "${ports[@]}"; do
-    delete_ufw_rule "$port"
+# 执行UFW操作
+for ip in "${resolved_ips[@]}"; do
+    add_ufw_rule "$ip" "$SSH_PORT"
 done
+
+# 删除多余的UFW规则
+delete_ufw_rule "$SSH_PORT"
