@@ -57,7 +57,7 @@ delete_ufw_rule() {
 
 # 读取A.json文件
 domains=($(jq -r '.domain[]' "$json_file"))
-ports=("ssh" $(jq -r '.port[]' "$json_file"))
+ports=($(jq -r '.port[]' "$json_file"))
 
 # 遍历域名，解析成IP并配置UFW规则
 for domain in "${domains[@]}"; do

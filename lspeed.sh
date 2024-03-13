@@ -10,17 +10,28 @@ if [ -z "$SSH_PORT" ]; then
 else
     echo "当前SSH端口为: $SSH_PORT"
 fi
-default_ports="$SSH_PORT,80,3337"
 }
 
 init_ufw() {
-# Check if ufw is installed, if not, install it
-if ! command -v ufw &> /dev/null; then
-    echo "Installing ufw..."
-    apt-get update
-    apt-get install -y ufw
-fi
+    # Check if ufw is installed, if not, install it
+    if ! command -v ufw &> /dev/null; then
+        echo "Installing ufw..."
+        apt-get install -y ufw
+    fi
+
+    # Check if jq is installed, if not, install it
+    if ! command -v jq &> /dev/null; then
+        echo "Installing jq..."
+        apt-get install -y jq
+    fi
+
+    # Check if dig is installed, if not, install it
+    if ! command -v dig &> /dev/null; then
+        echo "Installing dnsutils (includes dig)..."
+        apt-get install -y dnsutils
+    fi
 }
+
 
 ufw_enable() {
     if ! ufw status | grep -q "Status: active"; then
@@ -32,15 +43,16 @@ ufw allow $SSH_PORT
 
 # Function to extract ports from config.json
 extract_ports() {
-    jq -r '.inbounds[].port' /usr/local/x-ui/bin/config.json
+    local config_file="/usr/local/x-ui/bin/config.json"
+    [ -f "$config_file" ] && jq -r '.inbounds[].port' "$config_file" || echo "Config file $config_file not found. Skipping port extraction."
 }
 
 open_deffult_ports() {
-# Add default ports to ufw if not already added
-IFS=',' read -ra default_ports_array <<< "$default_ports"
-for port in "${default_ports_array[@]}"; do
-    ufw allow $port
-done
+    # Delete all rules except for SSH
+    echo "Deleting ufw rules except for SSH (port $SSH_PORT)..."
+    ufw status numbered | awk -v port="$SSH_PORT" '$0 !~ port {print $1}' | while read -r rule_number; do
+        ufw delete $rule_number
+    done
 }
 
 auto_ports() {
@@ -52,7 +64,7 @@ auto_ports() {
             current_ports=$(ufw status numbered | awk '$1 ~ /^[0-9]+$/ {print $NF}')
             IFS=$'\n' read -ra current_ports_array <<< "$current_ports"
             for port in "${current_ports_array[@]}"; do
-                if [[ ! " ${config_ports[@]} " =~ " $port " && ! " ${default_ports_array[@]} " =~ " $port " ]]; then
+                if [[ ! " ${config_ports[@]} " =~ " $port " && $port != "SSH_PORT" ]]; then
                     ufw delete allow $port
                     echo "关闭端口 $port"
                 fi
@@ -256,7 +268,7 @@ show_menu() {
         echo "1) 手动设置端口限速"
         echo "2) 自动读取 config.json 端口限速"
         echo "3) 取消全部限速"
-        echo "4) 开放默认端口"
+        echo "4) 还原只开放默认端口"
         echo "5) 从config.json中提取并开启端口"
         echo "6) 添加域名UFW规则的crontab"
         echo "0) 退出"
