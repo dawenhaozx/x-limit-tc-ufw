@@ -50,12 +50,15 @@ add_ufw_rule() {
     fi
 }
 
-# 添加删除UFW规则的函数
+# 函数：删除UFW规则
 delete_ufw_rule() {
     local port="$1"
     
+    # 转义括号
+    local escaped_domains=$(IFS=\|; echo "${domains[*]}")
+
     # 列出待删除的规则
-    local rules_to_delete=$(ufw status | grep "ALLOW" | grep -vE "(${domains[@]// /|})" | grep "ALLOW.*$port" | awk '{print $2}')
+    local rules_to_delete=$(ufw status | grep "ALLOW" | grep -vE "($escaped_domains)" | grep "ALLOW.*$port" | awk '{print $2}')
 
     # 删除规则
     for source_ip in $rules_to_delete; do
