@@ -78,3 +78,4 @@ done
 # 删除不在解析域名IP列表中的对应端口规则
 for port in "${ports[@]}"; do
     delete_ufw_rule "$port"
+done

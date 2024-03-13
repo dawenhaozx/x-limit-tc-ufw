@@ -44,15 +44,14 @@ ufw allow $SSH_PORT
 # Function to extract ports from config.json
 extract_ports() {
     local config_file="/usr/local/x-ui/bin/config.json"
-    [ -f "$config_file" ] && jq -r '.inbounds[].port' "$config_file" || echo "Config file $config_file not found. Skipping port extraction."
+
+    [ -f "$config_file" ] && jq -r '.inbounds[].port' "$config_file" || (>&2 echo "Config file $config_file not found. Skipping port extraction." && echo "")
 }
 
 open_deffult_ports() {
     # Delete all rules except for SSH
-    echo "Deleting ufw rules except for SSH (port $SSH_PORT)..."
-    ufw status numbered | awk -v port="$SSH_PORT" '$0 !~ port {print $1}' | while read -r rule_number; do
-        ufw delete $rule_number
-    done
+    ufw reset
+    ufw_enable
 }
 
 auto_ports() {
