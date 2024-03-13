@@ -33,7 +33,7 @@ add_ufw_rule() {
     local rule="allow from $ip to any port $port"
 
     # 检查规则是否已存在
-    if ! ufw status | grep -q "$rule"; then
+    if ! ufw status | grep -F -q "$rule"; then
         ufw $rule comment "允许 $domain 访问端口 $port"
         echo "添加规则：$rule"
     else
