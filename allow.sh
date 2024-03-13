@@ -23,7 +23,16 @@ fi
 # 函数：解析域名为IP
 resolve_domain() {
     local domain="$1"
-    dig +short "$domain"
+    local result
+    result=$(dig +short "$domain")
+
+    # 检查是否成功解析域名
+    if [ -z "$result" ]; then
+        echo "错误: 无法解析域名 $domain。"
+        return 1
+    else
+        echo "$result"
+    fi
 }
 
 # 函数：添加UFW规则
@@ -34,14 +43,14 @@ add_ufw_rule() {
 
     # 检查规则是否已存在
     if ! ufw status | grep -F -q -- "$rule"; then
-        ufw $rule
+        ufw allow from "$ip" to any port "$port"
         echo "添加规则：$rule"
     else
         echo "规则已存在：$rule"
     fi
 }
 
-# 函数：删除UFW规则
+# 添加删除UFW规则的函数
 delete_ufw_rule() {
     local port="$1"
     
@@ -59,14 +68,11 @@ delete_ufw_rule() {
 domains=($(jq -r '.domain[]' "$json_file"))
 ports=($(jq -r '.port[]' "$json_file"))
 
-# 遍历域名，解析成IP并配置UFW规则
 for domain in "${domains[@]}"; do
     ip=$(resolve_domain "$domain")
 
     # 检查是否成功解析域名
-    if [ -z "$ip" ]; then
-        echo "错误: 无法解析域名 $domain。"
-    else
+    if [ $? -eq 0 ]; then
         add_ufw_rule "$ip" "$SSH_PORT"
         # 遍历端口配置，添加UFW规则
         for port in "${ports[@]}"; do
