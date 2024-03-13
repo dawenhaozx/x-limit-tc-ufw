@@ -58,7 +58,9 @@ delete_ufw_rule() {
     local escaped_domains=$(IFS=\|; echo "${domains[*]}")
 
     # 列出待删除的规则
-    local rules_to_delete=$(ufw status | grep "ALLOW" | grep -vE "($escaped_domains)" | grep "ALLOW.*$port" | awk '{print $2}')
+    local rules_to_delete=$(ufw status | grep "ALLOW" | grep -vE "($escaped_domains)" | grep "ALLOW.*$port" | awk '{print $4}')
+
+    echo "要删除的规则列表：$rules_to_delete"
 
     # 删除规则
     for source_ip in $rules_to_delete; do
