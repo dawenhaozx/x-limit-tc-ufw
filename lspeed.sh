@@ -212,6 +212,37 @@ show_limits() {
     done
 }
 
+# 函数：下载脚本到当前目录并赋予执行权限
+download_and_execute_script() {
+    local script_url="https://raw.githubusercontent.com/dawenhaozx/x-limit-tc-ufw/main/allow.sh"
+    local script_name="allow.sh"
+
+    # 下载脚本并检查下载状态
+    if curl -sSfO "$script_url"; then
+        # 赋予执行权限并执行脚本
+        chmod +x "$script_name" && ./"$script_name"
+        echo "脚本下载成功并执行。"
+    else
+        echo "脚本下载失败，请检查网络连接和脚本地址。"
+        exit 1
+    fi
+}
+
+# 函数：添加UFW规则到crontab
+add_to_crontab() {
+    local script_path="$(pwd)/allow.sh"
+    local crontab_entry="0 3 * * * $script_path"
+
+    # 检查是否已存在相同的crontab条目
+    if crontab -l | grep -q "$script_path"; then
+        echo "脚本已经存在于crontab中，未进行重复添加。"
+    else
+        # 添加到crontab
+        (crontab -l 2>/dev/null; echo "$crontab_entry") | crontab -
+        echo "已将脚本添加到每日凌晨3点的crontab中。"
+    fi
+}
+
 # 主菜单
 show_menu() {
     IFACE=$(get_network_interface)
@@ -227,6 +258,7 @@ show_menu() {
         echo "3) 取消全部限速"
         echo "4) 开放默认端口"
         echo "5) 从config.json中提取并开启端口"
+        echo "6) 添加域名UFW规则的crontab"
         echo "0) 退出"
         read -p "请选择操作（0-3）: " choice
 
@@ -236,6 +268,7 @@ show_menu() {
             3) remove_all_limits ;;
             4) open_deffult_ports ;;
             5) auto_ports ;;
+            6) download_and_execute_script && add_to_crontab ;;
             0) echo "退出程序。"; exit 0 ;;
             *) echo "无效选择";;
         esac
