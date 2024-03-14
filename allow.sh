@@ -54,39 +54,36 @@ ufw_rule() {
     local action="$1"
     local ip="$2"
     local port="$3"
-    local rule="allow from $ip to any port $port"
-    case "$ip" in
-        "0.0.0.0/0")
-            case "$action" in
-                "allow")
-                    ufw allow "$port" > /dev/null && echo "已添加规则：allow any port $port"
-                    ;;
-                "delete")
-                    ufw delete allow "$port" > /dev/null && echo "已删除规则：allow any port $port"
-                    ;;
-                *)
-                    echo "无效的操作：$action"
-                    return 1
-                    ;;
-            esac
-            ;;
-        *)
-            case "$action" in
-                "allow")
-                    ufw allow $rule > /dev/null && echo "已添加规则：$rule"
-                    ;;
-                "delete")
-                    ufw delete $rule > /dev/null && echo "已删除规则：$rule"
-                    ;;
-                *)
-                    echo "无效的操作：$action"
-                    return 1
-                    ;;
-            esac
-            ;;
-    esac
-}
 
+    # 判断是否为0.0.0.0/0，直接执行相应操作
+    if [ "$ip" = "0.0.0.0/0" ]; then
+        case "$action" in
+            "allow")
+                ufw "$action" "$port" > /dev/null && echo "已执行操作：$action any port $port"
+                ;;
+            "delete")
+                ufw delete allow "$port" > /dev/null && echo "已执行操作：$action any port $port"
+                ;;
+            *)
+                echo "无效的操作：$action"
+                return 1
+                ;;
+        esac
+    else
+        case "$action" in
+            "allow")
+                ufw "$action" from "$ip" to any port "$port" > /dev/null && echo "已执行操作：$action allow from $ip to any port $port"
+                ;;
+            "delete")
+                ufw delete allow from "$ip" to any port "$port" > /dev/null && echo "已执行操作：$action allow from $ip to any port $port"
+                ;;
+            *)
+                echo "无效的操作：$action"
+                return 1
+                ;;
+        esac
+    fi
+}
 
 # 添加ips_diff到ports
 for ip in "${ips_diff[@]}"; do
