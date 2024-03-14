@@ -17,6 +17,7 @@ init_ufw() {
     if ! command -v ufw &> /dev/null; then
         echo "Installing ufw..."
         apt-get install -y ufw
+        ufw_enable
     fi
 
     # Check if jq is installed, if not, install it
@@ -260,7 +261,6 @@ show_menu() {
     init_tc  # 脚本启动时初始化 tc
     init_ufw
     default_ports
-    ufw_enable
     while true; do
         show_ports
         show_limits
